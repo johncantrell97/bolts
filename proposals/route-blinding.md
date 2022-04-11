@@ -19,6 +19,7 @@
   * [Recipient pays fees](#recipient-pays-fees)
   * [Dummy hops](#dummy-hops)
   * [Wallets and unannounced channels](#wallets-and-unannounced-channels)
+  * [Blinded route selection](#blinded-route-selection)
   * [Blinded trampoline route](#blinded-trampoline-route)
 * [FAQ](#faq)
   * [Why not use rendezvous](#why-not-use-rendezvous)
@@ -476,6 +477,80 @@ and `scid` from the sender. It obviously reveals to the blinded node that the ne
 final recipient, but a wallet that's not online all the time with a stable IP will never be able
 to hide that information from the nodes it connects to anyway (even with rendezvous).
 
+### Blinded route selection
+
+There is a wide array of strategies that a recipient may use when creating a blinded route to
+ensure good privacy while maintaining good payment reliability. We will walk through some of
+these strategies below. Note that these are only examples, implementations should find strategies
+that suit their users' needs.
+
+If the recipient is not a public node and has a small number of peers, then it's very simple:
+they can include one path per peer. A mobile wallet's topology for example will typically look
+like this:
+
+```text
+               +-------+      +-------+
+    +----------| Carol |      |   X   |
+    |          +-------+      +-------+
+    |              |              |
+    |              |              |
++-------+      +-------+      +-------+      +-------+
+| Alice |------|  Bob  |------|   X   |------|   X   |
++-------+      +-------+      +-------+      +-------+
+    |                             |
+    |                             |
+    |                         +-------+
+    +-------------------------| Dave  |
+                              +-------+
+```
+
+Alice could provide a blinded route containing one blinded path per peer and dummy hops:
+
+* Bob   -> Blinded(Alice) -> Blinded(Alice) -> Blinded(Alice)
+* Carol -> Blinded(Alice) -> Blinded(Alice) -> Blinded(Alice)
+* Dave  -> Blinded(Alice) -> Blinded(Alice) -> Blinded(Alice)
+
+Alice is able to use all of her inbound liquidity while benefiting from a large anonymity set: she
+could be any node at most three hops away from Bob, Carol and Dave.
+
+If the recipient is a public node, its strategy will be different. It should use introduction nodes
+that have many peers to obtain a good anonymity set. Let's assume that Alice's neighbourhood has
+the following topology:
+
+```text
++-------+      +-------+
+|   X   |      |   X   |
++-------+      +-------+
+    |              |
+    |              |
++-------+      +-------+      +-------+
+|  N1   |------|  N2   |------|   X   |
++-------+      +-------+      +-------+
+    |              |              |
+    |              |              |
++-------+      +-------+      +-------+      +-------+
+| Alice |------|  N3   |------|  N4   |------|   X   |
++-------+      +-------+      +-------+      +-------+
+```
+
+Alice can run a BFS of depth 2 to identify that N2 and N4 are good introduction nodes that provide
+a large anonymity set. She can then provide the following blinded paths:
+
+* N2 -> Blinded(N1) -> Blinded(Alice) -> Blinded(Alice)
+* N4 -> Blinded(N3) -> Blinded(Alice) -> Blinded(Alice)
+
+Alice should analyze the payment relay parameters of all channels in her anonymity set and choose
+fees/cltv that would work for a large enough subset of them.
+
+Note that Alice chose non-overlapping paths: otherwise these paths may not have enough liquidity
+to relay the payment she expects to receive, unless the path capacity is much larger than the
+expected payment.
+
+When the receiver expects to receive large payments, liquidity may become an issue if it is
+scattered among too many peers. The receiver may be forced to use introduction nodes that are
+direct peers to ensure that enough liquidity is available (in which case it's particularly useful
+to include dummy hops in the blinded paths).
+
 ### Blinded trampoline route
 
 Route blinding can also be used with trampoline very easily. Instead of providing the
@@ -485,6 +560,34 @@ Each trampoline node can then decrypt the `node_id` of the next node and compute
 next trampoline node. That `E(i)` can then be sent in the outer onion payload instead of using the
 lightning message's fields, which is even cleaner and doesn't require nodes between trampoline
 nodes to understand route blinding.
+
+Using a blinded trampoline route is a good solution for public nodes that have many peers and
+run into liquidity issues affecting payment reliability. Such recipients can choose trampoline
+nodes that will be able to find many paths towards them:
+
+```text
+               +-------+                     +-------+      
+    +----------|   X   |--------+   +--------|   X   |----------+
+    |          +-------+        |   |        +-------+          |
+    |                           |   |                           |
+    |                           |   |                           |
++-------+      +-------+      +-------+      +-------+      +-------+
+|  T1   |------|   X   |------| Alice |------|   X   |------|  T2   |
++-------+      +-------+      +-------+      +-------+      +-------+
+    |                           |   |                           |
+    |                           |   |                           |
+    |          +-------+        |   |        +-------+          |
+    +----------|   X   |--------+   +--------|   X   |----------+
+               +-------+                     +-------+      
+```
+
+Alice can provide the following blinded trampoline paths:
+
+* T1 -> Blinded(Alice)
+* T2 -> Blinded(Alice)
+
+T1 and T2 will be able to find many paths towards Alice and retry whenever some paths fail,
+working around the potential liquidity constraints.
 
 ## FAQ
 

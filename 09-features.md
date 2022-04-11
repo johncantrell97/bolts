@@ -19,12 +19,14 @@ for use of the channel, so the presentation of those features depends
 on the feature itself.
 
 The Context column decodes as follows:
+
 * `I`: presented in the `init` message.
 * `N`: presented in the `node_announcement` messages
 * `C`: presented in the `channel_announcement` message.
 * `C-`: presented in the `channel_announcement` message, but always odd (optional).
 * `C+`: presented in the `channel_announcement` message, but always even (required).
 * `9`: presented in [BOLT 11](11-payment-encoding.md) invoices.
+* `B`: presented in the `payment_constraints` field of a blinded path.
 
 | Bits  | Name                             | Description                                               | Context  | Dependencies      | Link                                  |
 |-------|----------------------------------|-----------------------------------------------------------|----------|-------------------|---------------------------------------|
