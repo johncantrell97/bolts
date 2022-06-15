@@ -199,9 +199,10 @@ The `encrypted_data` for each intermediate node will contain the following field
 * `htlc_minimum_msat`: minimum htlc amount that should be accepted
 * `allowed_features`: features related to payment relay that the sender is allowed to use
 
-The recipient must use values that exceed the ones found in each `channel_udpate`, otherwise it
-would be easy for a malicious sender to figure out which channels are hidden inside the blinded
-route.
+The recipient must use values that provide a good enough anonymity set, by looking at nearby
+channels and selecting values that would work for a large enough number of those channels.
+Otherwise it could be easy for a malicious sender to figure out which channels are hidden inside
+the blinded route if for example the selected fees are lower than most other candidates.
 
 The recipient also includes the `payment_preimage` (or another private unique identifier for the
 payment) in the `path_id` field of the `encrypted_data` payload for itself: this will let the
@@ -289,19 +290,19 @@ allow Carol to compute the blinding shared secret and correctly forward. We put 
 ephemeral key in the onion instead of using a tlv in `update_add_htlc` because intermediate nodes
 added before the blinded route may not support route blinding and wouldn't know how to relay it.
 
-Eve wants to send 100 000 msat to this blinded route.
-She can reach Carol via Dave: `Eve -> Dave -> Carol`, where the channel between Dave and Carol uses
+Erin wants to send 100 000 msat to this blinded route.
+She can reach Carol via Dave: `Erin -> Dave -> Carol`, where the channel between Dave and Carol uses
 the following relay parameters:
 
 * `fee_base_msat`: 10
 * `fee_proportional_millionths`: 100
 * `cltv_expiry_delta`: 24
 
-Eve uses the aggregated route relay parameters to compute how much should be sent to Carol:
+Erin uses the aggregated route relay parameters to compute how much should be sent to Carol:
 
 * `amount = ceil(100000 + 201 + 1001 * 100000 / 1000000) = 100302 msat`
 
-Eve chooses a final expiry of 1100, which is below Alice's `max_cltv_expiry`, and computes the
+Erin chooses a final expiry of 1100, which is below Alice's `max_cltv_expiry`, and computes the
 expiry that should be sent to Carol:
 
 * `expiry = 1100 + 288 = 1388`
@@ -328,7 +329,7 @@ protects against intermediate nodes that would try to relay a lower amount).
 The messages exchanged will contain the following values:
 
 ```text
-     Eve                                          Dave                                                   Carol                                                   Bob                                         Alice
+    Erin                                          Dave                                                   Carol                                                   Bob                                         Alice
       |             update_add_htlc                |              update_add_htlc                          |             update_add_htlc                          |             update_add_htlc                |
       |     +--------------------------------+     |      +------------------------------------------+     |     +------------------------------------------+     |     +--------------------------------+     |
       |     |  amount: 100322 msat           |     |      |  amount: 100302 msat                     |     |     |  amount: 100152 msat                     |     |     |  amount: 100002 msat           |     |
