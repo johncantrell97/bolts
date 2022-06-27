@@ -454,9 +454,9 @@ may contain the following TLV fields:
         * [`point`:`blinding`]
     1. type: 10 (`payment_relay`)
     2. data:
-        * [`u32`:`fee_base_msat`]
-        * [`u32`:`fee_proportional_millionths`]
         * [`u16`:`cltv_expiry_delta`]
+        * [`u32`:`fee_proportional_millionths`]
+        * [`tu32`:`fee_base_msat`]
     1. type: 12 (`payment_constraints`)
     2. data:
         * [`u32`:`max_cltv_expiry`]
